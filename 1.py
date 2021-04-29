@@ -29,7 +29,8 @@ for line in sim:
     print('тип переменной: {}\n'.format(type(line)))    
     print('длинна строки: {}\n'.format(len(line)))
 
-3. Определить, какие из слов «attribute», «класс», «функция», «type» невозможно записать в байтовом типе.
+# 3. Определить, какие из слов «attribute», «класс», «функция», «type» невозможно 
+# записать в байтовом типе.
 sim2 = b'attribute'
 sim3 = b'класс'
 sim4 = b'функция'
@@ -99,7 +100,7 @@ print(f_n) # печатаем объект файла, что бы узнать 
  
 file_coding = locale.getpreferredencoding()
  
-Читаем из файла
+#Читаем из файла
 with open('resurs.txt', 'r', encoding=file_coding) as f_n:
     for i in f_n:
         print(i)
