@@ -30,17 +30,16 @@ def send_mess():#отправляем сообещние
     sen = form_message(m)
     s.send(sen)
 
-def loads_msg():#принимаем сообещение от сервера
+def rec_messages():#прием сообщения
     data = s.recv(1024)
+    loads_msg(data)
+
+def loads_msg(data):#обрабатываем сообещение от сервера
+    # data = s.recv(1024)
     q = pickle.loads(data)
     print('Сообщение от сервера: ', q, ', длиной ', len(data), ' байт')
     s.close()
-    # return data, q
 
-# def print_msg():#обрабатываем принятое сообещние
-    # # data, q = loads_msg()
-    # print('Сообщение от сервера: ', q, ', длиной ', len(data), ' байт')
-    # s.close()
 
 
 parser = createParser()
@@ -49,7 +48,8 @@ namespace = parser.parse_args (sys.argv[1:])
 s = socket(AF_INET, SOCK_STREAM)  # Создать сокет TCP
 s.connect((namespace.addr, namespace.port))   # Соединиться с сервером
 
+
 send_mess()
-loads_msg()
+rec_messages()
 
 
