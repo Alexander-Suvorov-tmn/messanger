@@ -2,7 +2,8 @@ from socket import *
 import sys
 import argparse
 import pickle
-from log import client_log_config
+from logger import client_log_config
+from l import Log
 
 def createParser ():
     parser = argparse.ArgumentParser()
@@ -25,15 +26,16 @@ def msg():#сообщение
 def form_message(m):#формируем сообещение серверу
     a = pickle.dumps(m)
     logger.info('сообщение сформированно')
-
     return a
 
+@Log()
 def send_mess():#отправляем сообещние
     m = msg()
     sen = form_message(m)
     s.send(sen)
     logger.info('сообщение отправленно на сервер')
 
+@Log()
 def rec_messages():#прием сообщения
     data = s.recv(1024)
     loads_msg(data)
@@ -46,18 +48,11 @@ def loads_msg(data):#обрабатываем сообещение от серв
     except Exception as e:
         logger.error('Ошибка работы программы client.py', e)
 
-
-
-parser = createParser()
-namespace = parser.parse_args (sys.argv[1:])
-
-s = socket(AF_INET, SOCK_STREAM)  # Создать сокет TCP
-s.connect((namespace.addr, namespace.port))   # Соединиться с сервером
-
 logger = client_log_config.get_logger(__name__)
-
 if __name__ == "__main__":
+    parser = createParser()
+    namespace = parser.parse_args (sys.argv[1:])
+    s = socket(AF_INET, SOCK_STREAM)  # Создать сокет TCP
+    s.connect((namespace.addr, namespace.port))   # Соединиться с сервером
     send_mess()
     rec_messages()
-
-
