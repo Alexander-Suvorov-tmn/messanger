@@ -1,9 +1,10 @@
 # Программа сервера для получения приветствия от клиента и отправки ответа
 from socket import *
-import time
 import sys
 import argparse
 import pickle
+from log import server_log_config
+
 
 def createParser ():
     parser = argparse.ArgumentParser()
@@ -12,8 +13,9 @@ def createParser ():
     return parser
 
 def upload_message(data):#обрабатываем сообещние от пользователя   
-    print(pickle.loads(data))
+    print(pickle.loads(data))     
     send_message()
+    logger.info('сообщение от пользователя сформированно')   
 
 def response():# ответ пользователю
     response = {
@@ -24,6 +26,7 @@ def response():# ответ пользователю
 
 def form_mes(respons):#формируем ответ пользователю   
     mc = pickle.dumps(respons)
+    logger.info('сообщение пользователю сформированно')
     return mc
 
 def send_message():#отправляем сообещнеи пользователю
@@ -31,6 +34,7 @@ def send_message():#отправляем сообещнеи пользовате
     a = form_mes(respons)
     client.send(a)
     client.close()
+    logger.info('сообщение пользователю отправленно')
 
 s = socket(AF_INET, SOCK_STREAM)  # Создает сокет TCP
 
@@ -42,8 +46,14 @@ s.listen(5)                       # Переходит в режим ожида�
                                   # Одновременно обслуживает не более
                                   # 5 запросов.
 
-while True:
-    client, addr = s.accept()
-    data = client.recv(1024)
-    upload_message(data)
+logger = server_log_config.get_logger(__name__)
+
+if __name__ == "__main__":
+    try:
+        while True:
+            client, addr = s.accept()
+            data = client.recv(1024)
+            upload_message(data)
+    except Exception as e:
+        logger.error('Ошибка работы программы server.py', e)
     
