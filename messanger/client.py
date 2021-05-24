@@ -4,6 +4,8 @@ import argparse
 import pickle
 from logger import client_log_config
 from l import Log
+import threading
+
 
 def createParser ():
     parser = argparse.ArgumentParser()
@@ -11,13 +13,13 @@ def createParser ():
     parser.add_argument ('-a', '--addr', nargs='?', default='localhost')# адрес сервера
     return parser
 
-def msg():#сообщение
+def msg(name):#сообщение
     msg = {
         "action": "presence",
         "time": '<unix timestamp>',
         "type": "status",
         "user": {
-            "account_name": "AlexSu",
+            "account_name": name,
             "status": "Yep, I am here!"
         }
     }
@@ -30,29 +32,42 @@ def form_message(m):#формируем сообещение серверу
 
 @Log()
 def send_mess():#отправляем сообещние
-    m = msg()
+    m = msg(nick_name)
     sen = form_message(m)
-    s.send(sen)
+    s.sendto(sen, namespace)
     logger.info('сообщение отправленно на сервер')
 
-@Log()
-def rec_messages():#прием сообщения
-    data = s.recv(1024)
-    loads_msg(data)
+# @Log()
+def rec_messages():#прием сообщения и обрабатываем сообещение от сервера
+    while 1:
+        data = s.recv(1024)
+    
+        try:
+            q = pickle.loads(data)
+            print(q)
+            logger.info('Сообщение c сервера: ', q, ', длиной ', len(data), ' байт')
+            # s.close()
+        except Exception as e:
+            logger.error('Ошибка работы программы client.py', e)
 
-def loads_msg(data):#обрабатываем сообещение от сервера
-    try:
-        q = pickle.loads(data)
-        logger.info('Сообщение от сервера: ', q, ', длиной ', len(data), ' байт')
-        s.close()
-    except Exception as e:
-        logger.error('Ошибка работы программы client.py', e)
 
-logger = client_log_config.get_logger(__name__)
 if __name__ == "__main__":
+    logger = client_log_config.get_logger(__name__)
+
     parser = createParser()
     namespace = parser.parse_args (sys.argv[1:])
+    nick_name = input('Ваш Ник')
     s = socket(AF_INET, SOCK_STREAM)  # Создать сокет TCP
-    s.connect((namespace.addr, namespace.port))   # Соединиться с сервером
+    # s.connect((namespace.addr, namespace.port))   # Соединиться с сервером
+    s.bind(('', 0))
     send_mess()
-    rec_messages()
+    potok = threading.Thread(target= rec_messages)
+    potok.start()
+    while 1:
+        mes = input('Введите сообщение: ')
+        s.sendto(('['+nick_name+']' + pickle.dumps(mes)), namespace)
+
+
+    
+
+

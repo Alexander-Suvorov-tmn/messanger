@@ -5,6 +5,7 @@ import argparse
 import pickle
 from logger import server_log_config
 from l import Log
+import time
 
 
 def createParser ():
@@ -16,7 +17,7 @@ def createParser ():
 @Log()
 def upload_message(data):#обрабатываем сообещние от пользователя   
     print(pickle.loads(data))
-    send_message()
+    # send_message()
     logger.info('сообщение от пользователя сформированно')   
 
 def response():# ответ пользователю
@@ -31,32 +32,43 @@ def form_mes(respons):#формируем ответ пользователю
     logger.info('сообщение пользователю сформированно')
     return mc
 
-@Log()
-def send_message():#отправляем сообещнеи пользователю
-    respons = response()
-    a = form_mes(respons)
-    client.send(a)
-    client.close()
-    logger.info('сообщение пользователю отправленно')
+# @Log()
+# def send_message():#отправляем сообещнеи пользователю
+#     respons = response()
+#     a = form_mes(respons)
+#     client.send()
+#     client.close()
+#     logger.info('сообщение пользователю отправленно')
 
-s = socket(AF_INET, SOCK_STREAM)  # Создает сокет TCP
-
-parser = createParser()
-namespace = parser.parse_args(sys.argv[1:])
-
-s.bind((namespace.addr, namespace.port))# Присваивает порт
-s.listen(5)                       # Переходит в режим ожидания запросов;
-                                  # Одновременно обслуживает не более
-                                  # 5 запросов.
-
-logger = server_log_config.get_logger(__name__)
-
-if __name__ == "__main__":
+ 
+if __name__ == "__main__":    
+    logger = server_log_config.get_logger(__name__)
+    
+    parser = createParser()
+    namespace = parser.parse_args(sys.argv[1:])
+    
+    s = socket(AF_INET, SOCK_STREAM)  # Создает сокет TCP
+    s.bind((namespace.addr, namespace.port))# Присваивает порт
+    s.listen(5)                        # Переходит в режим ожидания запросов;# Одновременно обслуживает не более # 5 запросов.
+    s.settimeout(0.2)   
+    user = []#список с адресами пользователей
+    
     try:
         while True:
-            client, addr = s.accept()
-            data = client.recv(1024)
-            upload_message(data)
+            print ('Start Server')
+            # client, addr = s.accept()
+            # data = client.recv(1024)
+            data, addres = s.recvfrom(1024)
+            print (addres[0], addres[1])
+
+            if  addres not in user: 
+                user.append(addres)# Если такого клиента нету , то добавить
+            
+            for users in user:
+                s.send(data, users)
+
+            # upload_message(data)
+
     except Exception as e:
         logger.error('Ошибка работы программы server.py', e)
     
