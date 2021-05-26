@@ -5,6 +5,7 @@ import pickle
 from logger import client_log_config
 from l import Log
 import select
+import json
 
 def createParser ():
     parser = argparse.ArgumentParser()
@@ -12,36 +13,69 @@ def createParser ():
     parser.add_argument ('-a', '--addr', nargs='?', default='localhost')# адрес сервера
     return parser
 
-def respons(nick_nam, message):#сообщение
+#формируем сообщение серверу
+def message(alias, message):
     msg = {
         "action": "msg",
         "time": "<unix timestamp>",
         "to": "#room_boom",
-        "from": nick_nam,
+        "from": alias,
         "message": message
     }
     return msg
 
-def read_requests(r, sock):
-    """ Чтение запросов из списка клиентов
-    """
-    for s in sock:
-        data = pickle.loads(s.recv(1024))
-        if not data :
-            print (f'\nDisconnected from chat server')
-            sys.exit()
-        else :
-            print(f'<{data["from"]}>: {data["message"]}')
+#принимаем сообещение от сервера,декодируем, 
+#Принимает байты и выдает словарь, если принято что - то другое отдает ошибку значения
+def loads_msg(sock):
+    data = sock.recv(1024)
+    if isinstance(data, bytes):
+        response = pickle.loads(data)
+        logger.info('Сообщение от сервера: ', response, ', длиной ', len(data), ' байт')
+        if isinstance(response, dict):
+            return response
+        raise ValueError
+    raise ValueError
 
-def write_responses(nick_nam, w, msg):
+#кодирование и отправка сообщения. Принимает словарь и отправляет его
+def send_message(sock, message):#отправляем сообещение серверу
+    sock.send(pickle.dumps(message))
 
-    for sock in w:
-        try:
-            msg = pickle.dumps(respons(nick_nam, msg))
-            sock.send(msg)
-        except:  # Сокет недоступен, клиент отключился
-            sock.close()
-            sys.exit()
+
+
+#основной код работы   
+def main(namespace):
+
+    try:
+        if not 1024 <= namespace.port <= 65535:
+            raise ValueError
+        logger.info(f"Connected to remote host - {namespace.addr}:{namespace.port} ")
+    except ValueError:
+        logger.warning("The port must be in the range 1024-6535")
+        sys.exit(1)
+    else:
+        with socket(AF_INET, SOCK_STREAM) as sock:
+            # Соединиться с сервером
+            try :
+                sock.connect((namespace.addr, namespace.port))
+            except :
+                print(f'Unable to connect')
+                sys.exit()
+            else:
+                alias = input('Name: ')              
+                logger.info("Message send")
+
+                while True:
+                    try:
+                        msg = input('Say: ')
+                        if msg == 'exit':
+                            sys.exit(1)
+                        send_message(sock, message(alias, msg))
+                        data = loads_msg(sock)
+                        print(f'<{data["from"] if data["from"] != alias else "You"}>: {data["message"]}')
+                        logger.info("The message is received")
+                    except (ValueError, json.JSONDecodeError):
+                        pass
+                        logger.warning("Failed to decode server message.")
 
 
 if __name__ == "__main__":
@@ -49,24 +83,4 @@ if __name__ == "__main__":
 
     parser = createParser()
     namespace = parser.parse_args (sys.argv[1:])
-
-    with socket(AF_INET, SOCK_STREAM) as sock:
-        # Соединиться с сервером
-        try :
-            sock.connect((namespace.addr, namespace.port))
-        except :
-            print(f'Unable to connect')
-            sys.exit()
-           
-        nick_nam = input('Name: ')
-        while True:
-            sock_lst = [sock]
-
-            msg = input('Say: ')
-            if msg == 'exit':
-                break
-
-            r, w, e = select.select(sock_lst , sock_lst, [], 0)
-
-            write_responses(nick_nam, w, msg)
-            read_requests(r, sock_lst)
+    main(namespace)

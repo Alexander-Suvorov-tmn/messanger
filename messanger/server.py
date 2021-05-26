@@ -14,103 +14,98 @@ def createParser ():
     parser.add_argument ('-a', '--addr', nargs='?', default='')# адрес прослушивания
     return parser
 
+@Log()
 def read_requests(r_clients, all_clients):
-# """ Чтение запросов из списка клиентов"""
-    responses = {} # Словарь ответов сервера вида {сокет: запрос}
+    """ Чтение запросов из списка клиентов
+    """
+    responses = {}  # Словарь ответов сервера вида {сокет: запрос}
+
     for sock in r_clients:
         try:
-            data = pickle.loads(sock.recv(1024))
-            responses[sock] = data
+            data = sock.recv(1024)
+            responses[sock] = pickle.loads(data)
         except:
-            print(f'Клиент {sock.fileno()} {sock.getpeername()} отключился')
+            print(f'Client {sock.fileno()} {sock.getpeername()} DISCONNECTED')
+            logger.info(f'Client {sock.fileno()} {sock.getpeername()} DISCONNECTED')
             all_clients.remove(sock)
 
     return responses
 
-
-def write_responses(requests, w_clients, all_clients):
-# """ Эхо-ответ сервера клиентам, от которых были запросы"""
-    for sock in w_clients:
-        try:
-    # Подготовить и отправить ответ сервера
-            resp = {'sock':sock.getpeername(), 'msg':requests[sock]}
-    # Эхо-ответ сделаем чуть непохожим на оригинал
-            sock.send(pickle.dumps(resp.upper()))
-        except: # Сокет недоступен, клиент отключился
-            print(f'Клиент {sock.fileno()} {sock.getpeername()} отключился')
-            sock.close()
-            all_clients.remove(sock)
-
-
+@Log()
 def write_responses_all(requests, all_clients):
-    # """ Пересылка сообщений
-    # """
+    """ Общий чат
+    """
     for sock in all_clients:
         for val in requests.values():
-            if val['to'] == '#room_boom':
-                try:                   
-                    sock.send(pickle.dump(response(val['from'], val['message'])))
-                except:  # Сокет недоступен, клиент отключился
-                    print(f'Клиент {sock.fileno()} {sock.getpeername()} отключился')
-                    sock.close()
-                    all_clients.remove(sock)
+            try:
+                sock.send(pickle.dumps(message(val['from'], val['message'])))
+            except:  # Сокет недоступен, клиент отключился
+                print(f'Client {sock.fileno()} {sock.getpeername()} DISCONNECTED')
+                logger.info(f'Client {sock.fileno()} {sock.getpeername()} DISCONNECTED')
+                sock.close()
+                all_clients.remove(sock) 
 
-@Log()
-def upload_message(data):#обрабатываем сообещние от пользователя   
-    print(pickle.loads(data))
-    # send_message()
-    logger.info('сообщение от пользователя сформированно')   
-
-def response(alias, message):# ответ пользователю
-    response = {
+def message(alias, message):
+    """Функция формирует сообщение"""
+    msg = {
         "action": "msg",
         "time": "<unix timestamp>",
         "to": "#room_boom",
         "from": alias,
         "message": message
     }
-    return response
+    return msg
 
-def form_mes(respons):#формируем ответ пользователю   
-    mc = pickle.dumps(respons)
-    logger.info('сообщение пользователю сформированно')
-    return mc
+@Log()
+def main(namespace):
+    """ Основной скрипт работы сервера""" 
+    clients = []
 
-if __name__ == "__main__":    
-    logger = server_log_config.get_logger(__name__)
-    
-    parser = createParser()
-    namespace = parser.parse_args(sys.argv[1:])
-    
-    sock = socket(AF_INET, SOCK_STREAM)  # Создает сокет TCP
-    sock.bind((namespace.addr, namespace.port))# Присваивает порт
-    sock.listen(5)                        # Переходит в режим ожидания запросов;# Одновременно обслуживает не более # 5 запросов.
-    sock.settimeout(0.2)   
-    logger.info(f"Сервер запущен на порту: {namespace.port}")
-    user = []#список с адресами пользователей
-    
+    sock = socket(AF_INET, SOCK_STREAM)
+
+    try:
+        if not 1024 <= namespace.port <= 65535:
+            raise ValueError
+    except ValueError:
+        logger.warning("The port must be in the range 1024-6535")
+        sys.exit(1)
+    else:
+        sock.bind((namespace.addr, namespace.port))
+        sock.listen(5)
+        sock.settimeout(0.2)
+        logger.info(f"The server is RUNNING on the port: {namespace.port}")
+
     while True:
         try:
-            print ('Start Server')
-            conn, addres = sock.accept()            
-           
+            conn, addr = sock.accept()  # Проверка подключений
         except OSError as e:
             pass  # timeout вышел
-
         else:
-            print (f'Подключение {str(addres)}')
-            if  addres not in user: 
-                user.append(conn)# Если такого клиента нету , то добавить
-        finally:    
+            print(f"Client {str(addr)} CONNECTED")
+            logger.info(f"Client {str(addr)} CONNECTED")
+            clients.append(conn)
+        finally:
+            # Проверить наличие событий ввода-вывода
             wait = 10
             r = []
             w = []
             e = []
             try:
-                r, w, e = select.select(user, user, [], wait)
+                r, w, e = select.select(clients, clients, [], wait)
             except:
                 pass  # Ничего не делать, если какой-то клиент отключился
 
-            requests = read_requests(r, user)  # Сохраним запросы клиентов
-            if requests:              
-                write_responses_all(requests, user)
+            requests = read_requests(r, clients)  # Сохраним запросы клиентов
+            if requests:
+                write_responses_all(requests, clients)
+
+
+if __name__ == "__main__":
+    logger = server_log_config.get_logger(__name__)
+    parser = createParser()
+    namespace = parser.parse_args(sys.argv[1:])
+
+    main(namespace)
+
+        
+    
