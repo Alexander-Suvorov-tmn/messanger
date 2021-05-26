@@ -4,8 +4,7 @@ import argparse
 import pickle
 from logger import client_log_config
 from l import Log
-import threading
-
+import select
 
 def createParser ():
     parser = argparse.ArgumentParser()
@@ -13,42 +12,36 @@ def createParser ():
     parser.add_argument ('-a', '--addr', nargs='?', default='localhost')# адрес сервера
     return parser
 
-def msg(name):#сообщение
+def respons(nick_nam, message):#сообщение
     msg = {
-        "action": "presence",
-        "time": '<unix timestamp>',
-        "type": "status",
-        "user": {
-            "account_name": name,
-            "status": "Yep, I am here!"
-        }
+        "action": "msg",
+        "time": "<unix timestamp>",
+        "to": "#room_boom",
+        "from": nick_nam,
+        "message": message
     }
     return msg
 
-def form_message(m):#формируем сообещение серверу
-    a = pickle.dumps(m)
-    logger.info('сообщение сформированно')
-    return a
+def read_requests(r, sock):
+    """ Чтение запросов из списка клиентов
+    """
+    for s in sock:
+        data = pickle.loads(s.recv(1024))
+        if not data :
+            print (f'\nDisconnected from chat server')
+            sys.exit()
+        else :
+            print(f'<{data["from"]}>: {data["message"]}')
 
-@Log()
-def send_mess():#отправляем сообещние
-    m = msg(nick_name)
-    sen = form_message(m)
-    s.sendto(sen, namespace)
-    logger.info('сообщение отправленно на сервер')
+def write_responses(nick_nam, w, msg):
 
-# @Log()
-def rec_messages():#прием сообщения и обрабатываем сообещение от сервера
-    while 1:
-        data = s.recv(1024)
-    
+    for sock in w:
         try:
-            q = pickle.loads(data)
-            print(q)
-            logger.info('Сообщение c сервера: ', q, ', длиной ', len(data), ' байт')
-            # s.close()
-        except Exception as e:
-            logger.error('Ошибка работы программы client.py', e)
+            msg = pickle.dumps(respons(nick_nam, msg))
+            sock.send(msg)
+        except:  # Сокет недоступен, клиент отключился
+            sock.close()
+            sys.exit()
 
 
 if __name__ == "__main__":
@@ -56,18 +49,24 @@ if __name__ == "__main__":
 
     parser = createParser()
     namespace = parser.parse_args (sys.argv[1:])
-    nick_name = input('Ваш Ник')
-    s = socket(AF_INET, SOCK_STREAM)  # Создать сокет TCP
-    # s.connect((namespace.addr, namespace.port))   # Соединиться с сервером
-    s.bind(('', 0))
-    send_mess()
-    potok = threading.Thread(target= rec_messages)
-    potok.start()
-    while 1:
-        mes = input('Введите сообщение: ')
-        s.sendto(('['+nick_name+']' + pickle.dumps(mes)), namespace)
 
+    with socket(AF_INET, SOCK_STREAM) as sock:
+        # Соединиться с сервером
+        try :
+            sock.connect((namespace.addr, namespace.port))
+        except :
+            print(f'Unable to connect')
+            sys.exit()
+           
+        nick_nam = input('Name: ')
+        while True:
+            sock_lst = [sock]
 
-    
+            msg = input('Say: ')
+            if msg == 'exit':
+                break
 
+            r, w, e = select.select(sock_lst , sock_lst, [], 0)
 
+            write_responses(nick_nam, w, msg)
+            read_requests(r, sock_lst)
