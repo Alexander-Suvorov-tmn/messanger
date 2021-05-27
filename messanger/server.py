@@ -4,7 +4,7 @@ import sys
 import argparse
 import pickle
 from logger import server_log_config
-from l import Log
+#from l import Log
 import time
 import select
 
@@ -14,7 +14,7 @@ def createParser ():
     parser.add_argument ('-a', '--addr', nargs='?', default='')# адрес прослушивания
     return parser
 
-@Log()
+#@Log()
 def read_requests(r_clients, all_clients):
     """ Чтение запросов из списка клиентов
     """
@@ -31,7 +31,7 @@ def read_requests(r_clients, all_clients):
 
     return responses
 
-@Log()
+#@Log()
 def write_responses_all(requests, all_clients):
     """ Общий чат
     """
@@ -56,7 +56,7 @@ def message(alias, message):
     }
     return msg
 
-@Log()
+#@Log()
 def main(namespace):
     """ Основной скрипт работы сервера""" 
     clients = []

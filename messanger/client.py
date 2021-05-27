@@ -3,7 +3,7 @@ import sys
 import argparse
 import pickle
 from logger import client_log_config
-from l import Log
+#from l import Log
 import select
 import json
 
