@@ -3,7 +3,8 @@ from socket import *
 import sys
 import argparse
 import pickle
-from log import server_log_config
+from logger import server_log_config
+from l import Log
 
 
 def createParser ():
@@ -12,8 +13,9 @@ def createParser ():
     parser.add_argument ('-a', '--addr', nargs='?', default='')# адрес прослушивания
     return parser
 
+@Log()
 def upload_message(data):#обрабатываем сообещние от пользователя   
-    print(pickle.loads(data))     
+    print(pickle.loads(data))
     send_message()
     logger.info('сообщение от пользователя сформированно')   
 
@@ -29,6 +31,7 @@ def form_mes(respons):#формируем ответ пользователю
     logger.info('сообщение пользователю сформированно')
     return mc
 
+@Log()
 def send_message():#отправляем сообещнеи пользователю
     respons = response()
     a = form_mes(respons)

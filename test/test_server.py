@@ -1,4 +1,4 @@
-import server
+from messanger import server
 import unittest
 from socket import *
 

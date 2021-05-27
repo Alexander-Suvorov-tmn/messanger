@@ -1,4 +1,4 @@
-import client
+from messanger import client
 import unittest
 from socket import *
 
