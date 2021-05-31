@@ -15,19 +15,7 @@ def createParser():
     parser.add_argument ('-p', '--port', nargs='?', type=int, default=7777)# порт на сервере
     parser.add_argument ('-a', '--addr', nargs='?', default='localhost')# адрес сервера 
     parser.add_argument('-n', '--name', default=None, nargs='?')#имя пользователя
-    namespace = parser.parse_args(sys.argv[1:])
-    server_address = namespace.addr
-    server_port = namespace.port
-    client_name = namespace.name
-
-    # проверим подходящий номер порта
-    if not 1023 < server_port < 65536:
-        # logger.critical(
-            # f'Попытка запуска клиента с неподходящим номером порта: {server_port}. Допустимы адреса с 1024 до 65535. Клиент завершается.')
-        print(f'Попытка запуска клиента с неподходящим номером порта: {server_port}. Допустимы адреса с 1024 до 65535. Клиент завершается.')
-        exit(1)
-
-    return server_address, server_port, client_name
+    return parser
 
 #выбор режима отправки сообщения
 def selecting_mode(sock, client_name):
@@ -52,7 +40,7 @@ def selecting_mode(sock, client_name):
         elif purpose == '4':
             send_message(sock, create_exit_message(client_name))
             print('Завершение соединения.')
-            # logger.info('Завершение работы по команде пользователя.')
+            logger.info('Завершение работы по команде пользователя.')
             # Задержка неоходима, чтобы успело уйти сообщение о выходе
             time.sleep(0.5)
             break
@@ -79,18 +67,18 @@ def create_presence(account_name):
             "account_name": account_name
         }
     }
-    # logger.debug(f'Сформировано {PRESENCE} сообщение для пользователя {account_name}')
+    logger.debug(f'Сформировано сообщение для пользователя {account_name}')
     return out
 
 # Функция разбирает ответ сервера на сообщение о присутствии, возращает 200 если все ОК или генерирует исключение при\
 # ошибке.
 
 def process_response_ans(message):
-    # logger.debug(f'Разбор приветственного сообщения от сервера: {message}')
+    logger.debug(f'Разбор приветственного сообщения от сервера: {message}')
     if "responce" in message:
-        if message["response"] == 200:
+        if message['response'] == 200:
             return '200 : OK'
-        elif message["responce"] == 400:
+        elif message['responce'] == 400:
             raise (f'400 : {message["error"]}')
     raise ("response")
 
@@ -107,9 +95,9 @@ def message_u(sock, to, client_name = 'Guest'):
     }
     try:
         send_message(sock, msg)
-        # logger.info(f'Отправлено сообщение для пользователя {to}')
+        logger.info(f'Отправлено сообщение для пользователя {to}')
     except:
-        # logger.critical('Потеряно соединение с сервером.')
+        logger.critical('Потеряно соединение с сервером.')
         exit(1)
 
 # Функция создаёт словарь с сообщением о выходе.
@@ -123,7 +111,7 @@ def create_exit_message(client_name):
 
 #принимаем сообещение от сервера,декодируем, 
 #Принимает байты и выдает словарь, если принято что - то другое отдает ошибку значения
-def loads_msg(sock):
+def loads_msg(sock, client_name):
     while True:
         try:
             data = sock.recv(1024)
@@ -132,13 +120,13 @@ def loads_msg(sock):
 
                 if isinstance(response, dict):
                     print(f'\nПолучено сообщение от пользователя {response["sender"]}:\n{response["message"]}')
-                # logger.info(f'Получено сообщение от пользователя {message[SENDER]}:\n{message[MESSAGE_TEXT]}')
+                    logger.info(f'Получено сообщение от пользователя {response["sender"]}:\n{response["message"]}')
                 
                 else:
                     print(f'Получено некорректное сообщение с сервера: {response}')
-                    # logger.error(f'Получено некорректное сообщение с сервера: {message}')
+                    logger.error(f'Получено некорректное сообщение с сервера: {response}')
         except:
-            # logger.error(f'Не удалось декодировать полученное сообщение.')
+            logger.error(f'Не удалось декодировать полученное сообщение.')
             print(f'Не удалось декодировать полученное сообщение.')
             break
 
@@ -148,46 +136,50 @@ def send_message(sock, msg):#отправляем сообещение серв�
 
 #основной код работы   
 def main(namespace):
-    server_address, server_port, client_name = createParser()
 
-#если имя не ввели при запуске
-    if not client_name:
-        client_name = input('Введите имя пользователя: ')
-        print(f'Запущен клиент с парамертами: адрес сервера: {server_address} , порт: {server_port}, имя пользователя: {client_name}')
+    client_name = input('Введите имя пользователя: ')
+    print(f'Запущен клиент с парамертами: адрес сервера: {namespace.addr} , порт: {namespace.port}, имя пользователя: {client_name}')
 
-    # logger.info(
-        # f'Запущен клиент с парамертами: адрес сервера: {server_address} , порт: {server_port}, имя пользователя: {client_name}')
+    logger.info(
+        f'Запущен клиент с парамертами: адрес сервера: {namespace.addr} , порт: {namespace.port}, имя пользователя: {client_name}')
 
     try:
+        if not 1024 <= namespace.port <= 65535:
+            raise ValueError
+        logger.info(f"Connected to remote host - {namespace.addr}:{namespace.port} ")
+    except ValueError:
+        logger.warning("The port must be in the range 1024-6535")
+        sys.exit(1)
+    else:
         with socket(AF_INET, SOCK_STREAM) as sock:
             # Соединиться с сервером
-            sock.connect((namespace.addr, namespace.port))
-            send_message(sock, create_presence(client_name))
-            answer = process_response_ans(pickle.loads(sock))
-            # logger.info(f'Установлено соединение с сервером. Ответ сервера: {answer}')
-            print(f'Установлено соединение с сервером.')
-    except:
-        print(f'Unable to connect')
-        exit(1)
-    else:
-        # Если соединение с сервером установлено корректно, запускаем клиенский процесс приёма сообщний
-        receiver = threading.Thread(target=loads_msg, args=(sock, client_name))
-        receiver.daemon = True
-        receiver.start()  
+            try :
+                sock.connect((namespace.addr, namespace.port))
+            except :
+                print(f'Unable to connect')
+                sys.exit()
+            else:
+                # Если соединение с сервером установлено корректно, запускаем клиенский процесс приёма сообщний
+                receiver = threading.Thread(target=loads_msg, args=(sock, client_name))
+                receiver.daemon = True
+                receiver.start()  
 
-         # затем запускаем отправку сообщений и взаимодействие с пользователем.
-        user_interface = threading.Thread(target=selecting_mode, args=(sock, client_name))
-        user_interface.daemon = True
-        user_interface.start()
-        # logger.debug('Запущены процессы')  
+                # затем запускаем отправку сообщений и взаимодействие с пользователем.
+                user_interface = threading.Thread(target=selecting_mode, args=(sock, client_name))
+                user_interface.daemon = True
+                user_interface.start()
+                logger.debug('Запущены процессы')  
 
-        # если один из потоков завершён, то значит или потеряно соединение или пользователь
-        # ввёл exit. Поскольку все события обработываются в потоках, достаточно просто завершить цикл.
-        while True:
-            time.sleep(1)
-            if receiver.is_alive() and user_interface.is_alive():
-                continue
-            break   
+                # если один из потоков завершён, то значит или потеряно соединение или пользователь
+                # ввёл exit. Поскольку все события обработываются в потоках, достаточно просто завершить цикл.
+                while True:
+                    time.sleep(1)
+                    if receiver.is_alive() and user_interface.is_alive():
+                        continue
+                    break   
           
 if __name__ == "__main__" :
-    main()
+    logger = client_log_config.get_logger(__name__)
+    parser = createParser()
+    namespace = parser.parse_args (sys.argv[1:])
+    main(namespace)

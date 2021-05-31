@@ -17,6 +17,21 @@ def get_stream_handler():
     stream_handler.setFormatter(logging.Formatter(_log_format))
     return stream_handler
 
+#уровень DEBUG
+def get_stream_handler():
+    stream_handler = logging.FileHandler("client.log")
+    stream_handler.setLevel(logging.DEBUG)
+    stream_handler.setFormatter(logging.Formatter(_log_format))
+    return stream_handler
+
+#уровень CRITICAL 
+def get_stream_handler():
+    stream_handler = logging.FileHandler("client.log")
+    stream_handler.setLevel(logging.CRITICAL)
+    stream_handler.setFormatter(logging.Formatter(_log_format))
+    return stream_handler
+
+
 #общая обработка
 def get_logger(name):
     logger = logging.getLogger('app.client')

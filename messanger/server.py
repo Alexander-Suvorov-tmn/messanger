@@ -4,7 +4,7 @@ import sys
 import argparse
 import pickle
 from logger import server_log_config
-#from l import Log
+from l import Log
 import time
 import select
 
@@ -12,13 +12,9 @@ def createParser ():
     parser = argparse.ArgumentParser()
     parser.add_argument ('-p', '--port', nargs='?', type=int, default=7777)# порт на сервере
     parser.add_argument ('-a', '--addr', nargs='?', default='localhost')# адрес сервера
-    namespace = parser.parse_args(sys.argv[1:])
-    listen_address = namespace.a
-    listen_port = namespace.p
+    return parser
 
-
-
-# @Log()
+@Log()
 def read_requests(r_clients, all_clients):
     """ Прием сообщения сообщения
     """
@@ -31,17 +27,17 @@ def read_requests(r_clients, all_clients):
 
         except:
             print(f'Client {sock.fileno()} {sock.getpeername()} DISCONNECTED')
-            # logger.info(f'Client {sock.fileno()} {sock.getpeername()} DISCONNECTED')
+            logger.info(f'Client {sock.fileno()} {sock.getpeername()} DISCONNECTED')
             all_clients.remove(sock)
     return responses
 
 def message_processing_client(requests, messages, client_with_message, clients, names, sock):
     """ обработка сообщений клиентов """
 
-    if requests["action"] == 'presence':#проверяем назначение сообщения
-        if requests["user"]["account_name"] not in names.keys():
-            names[client_with_message["user"]["account_name"]] = client_with_message#если такого пользователя нет, то добавляем его в names
-            response = pickle.dumps(client_with_message, {"responce": 200})
+    if requests['action'] == 'presence':#проверяем назначение сообщения
+        if requests['user']['account_name'] not in names.keys():
+            names[client_with_message['user']['account_name']] = client_with_message#если такого пользователя нет, то добавляем его в names
+            response = pickle.dumps(client_with_message, {'responce': 200})
         else:#если такой прользователь есть
             response = { 'response': 400,
             'error': 'Имя пользователя уже занято.'
@@ -50,69 +46,65 @@ def message_processing_client(requests, messages, client_with_message, clients, 
             clients.remove(client_with_message)
             client_with_message.close()
         return
-    elif requests["action"] == 'msg':# Если это сообщение, то добавляем его в очередь сообщений
+    elif requests['action'] == 'msg':# Если это сообщение, то добавляем его в очередь сообщений
         messages.append(requests)
         return
-    elif  requests["action"] == 'exit':#Если клиент выходит
-        clients.remove(names(["account_name"]))
-        names["account_name"].close()
-        del names["account_name"]
+    elif  requests['action'] == 'exit':#Если клиент выходит
+        clients.remove(names(['account_name']))
+        names['account_name'].close()
+        del names['account_name']
         return
     else:#иначе отдаем ошибку
-        response = { "response": 400,
-            "error": 'Запрос некорректен.'
+        response = { 'response': 400,
+            'error': 'Запрос некорректен.'
         }        
         sock.send(pickle.dumps(client_with_message, response))
         return
 
 
-# @Log()
+@Log()
 def write_responses(i, names, send_data_lst, sock):
     """ Отпрвака сообщений
     """
     #отправка в общую группу
-    if  i["destination"] == 'all':
+    if  i['destination'] == 'all':
         for r in names:
             try:
                 response = r.values()
                 sock.send(pickle.dumps(response, i))
             except:  # Сокет недоступен, клиент отключился
                 print(f'Client {sock.fileno()} {sock.getpeername()} DISCONNECTED')
-                # logger.info(f'Client {sock.fileno()} {sock.getpeername()} DISCONNECTED')
+                logger.info(f'Client {sock.fileno()} {sock.getpeername()} DISCONNECTED')
                 sock.close()
                 send_data_lst.remove(sock)
 
     # отправка адресно
-    if i["destination"] in names and names[i["destination"]] in send_data_lst:
-       sock.send(pickle.dumps(names[i["destination"], i]))
-        # logger.info(f'Отправлено сообщение пользователю {i["destination"]} от пользователя {i["sender"]}.')
-    elif i["destination"] in names and names[i["destination"]] not in send_data_lst:
+    if i['destination'] in names and names[i['destination']] in send_data_lst:
+        sock.send(pickle.dumps(names[i['destination'], i]))
+        logger.info(f'Отправлено сообщение пользователю {i["destination"]} от пользователя {i["sender"]}.')
+    elif i['destination'] in names and names[i['destination']] not in send_data_lst:
         raise ConnectionError
     else:
         pass
-        # logger.error(
-            # f'Пользователь {i["destination"]} не зарегистрирован на сервере, отправка сообщения невозможна.')
+        logger.error(
+            f'Пользователь {i["destination"]} не зарегистрирован на сервере, отправка сообщения невозможна.')
 
 
-# @Log()
-def main():
-
-        # Загрузка параметров командной строки, если нет параметров, то задаём значения по умоланию.
-    listen_address, listen_port = createParser()
+@Log()
+def main(namespace):
+    sock = socket(AF_INET, SOCK_STREAM)
 
     try:
-        if not 1024 <= listen_port <= 65535:
+        if not 1024 <= namespace.port <= 65535:
             raise ValueError
-        # logger.info(f"Connected to remote host - {listen_address}:{listen_port} ")
     except ValueError:
-        # logger.warning("The port must be in the range 1024-6535")
+        logger.warning("The port must be in the range 1024-6535")
         sys.exit(1)
     else:
-        sock = (AF_INET, SOCK_STREAM)    
-        sock.bind((listen_address, listen_port))
+        sock.bind((namespace.addr, namespace.port))
         sock.listen(5)
         sock.settimeout(0.2)
-        # logger.info(f"The server is RUNNING on the port: {listen_port}")
+        logger.info(f"The server is RUNNING on the port: {namespace.port}")
 
         # список клиентов , очередь сообщений
         clients = []
@@ -128,7 +120,7 @@ def main():
         except OSError:
             pass
         else:
-            # logger.info(f'Установлено соедение с ПК {client_address}')
+            logger.info(f'Установлено соедение с ПК {client_address}')
             clients.append(client)
 
         recv_data_lst = []
@@ -146,10 +138,10 @@ def main():
             for client_with_message in recv_data_lst:
                 try:
                     requests = read_requests(recv_data_lst, clients)
-                    names[requests["destination"]]=client_with_message
+                    names[requests['destination']]=client_with_message
                     message_processing_client(requests, messages, client_with_message, clients, names, sock)
                 except:
-                    # logger.info(f'Клиент {client_with_message.getpeername()} отключился от сервера.')
+                    logger.info(f'Клиент {client_with_message.getpeername()} отключился от сервера.')
                     clients.remove(client_with_message)
 
         # Если есть сообщения, обрабатываем каждое.
@@ -159,5 +151,8 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    logger = server_log_config.get_logger(__name__)
+    parser = createParser()
+    namespace = parser.parse_args (sys.argv[1:])
+    main(namespace)
    
