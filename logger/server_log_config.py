@@ -18,6 +18,21 @@ def get_stream_handler():
     stream_handler.setFormatter(logging.Formatter(_log_format))
     return stream_handler
 
+#уровень DEBUG
+def get_stream_handler():
+    stream_handler = logging.FileHandler("server.log")
+    stream_handler.setLevel(logging.DEBUG)
+    stream_handler.setFormatter(logging.Formatter(_log_format))
+    return stream_handler
+
+#уровень WARNING
+def get_stream_handler():
+    stream_handler = logging.FileHandler("server.log")
+    stream_handler.setLevel(logging.WARNING)
+    stream_handler.setFormatter(logging.Formatter(_log_format))
+    return stream_handler
+
+
 
 #общая обработка + ротация
 def get_logger(name):
